@@ -1,0 +1,222 @@
+{
+  "timestamp": "2026-06-24T00:11:52Z",
+  "datasets": [
+    "10K",
+    "100K",
+    "500K"
+  ],
+  "iterations": 5,
+  "results": [
+    {
+      "name": "Largest Files (top 100)",
+      "dataset": "10K",
+      "median_ms": 7.71,
+      "p95_ms": 26.31,
+      "min_ms": 7.63,
+      "memory_peak_kb": 540.1,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Largest Files (top 10)",
+      "dataset": "10K",
+      "median_ms": 4.93,
+      "p95_ms": 5.27,
+      "min_ms": 4.76,
+      "memory_peak_kb": 34.9,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Category Breakdown",
+      "dataset": "10K",
+      "median_ms": 6.71,
+      "p95_ms": 8.83,
+      "min_ms": 6.66,
+      "memory_peak_kb": 77.4,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Extension Breakdown (top 20)",
+      "dataset": "10K",
+      "median_ms": 8.25,
+      "p95_ms": 9.99,
+      "min_ms": 8.05,
+      "memory_peak_kb": 78.8,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Total Stats (COUNT + SUM)",
+      "dataset": "10K",
+      "median_ms": 4.48,
+      "p95_ms": 5.93,
+      "min_ms": 4.28,
+      "memory_peak_kb": 76.9,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Largest Folders (top 50)",
+      "dataset": "10K",
+      "median_ms": 4.27,
+      "p95_ms": 6.18,
+      "min_ms": 4.13,
+      "memory_peak_kb": 100.3,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Full Overview (combined)",
+      "dataset": "10K",
+      "median_ms": 9.43,
+      "p95_ms": 10.04,
+      "min_ms": 8.77,
+      "memory_peak_kb": 39.8,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Largest Files (top 100)",
+      "dataset": "100K",
+      "median_ms": 24.24,
+      "p95_ms": 27.23,
+      "min_ms": 24.1,
+      "memory_peak_kb": 121.3,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Largest Files (top 10)",
+      "dataset": "100K",
+      "median_ms": 21.57,
+      "p95_ms": 21.72,
+      "min_ms": 21.47,
+      "memory_peak_kb": 33.1,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Category Breakdown",
+      "dataset": "100K",
+      "median_ms": 40.44,
+      "p95_ms": 41.03,
+      "min_ms": 40.03,
+      "memory_peak_kb": 39.1,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Extension Breakdown (top 20)",
+      "dataset": "100K",
+      "median_ms": 49.28,
+      "p95_ms": 51.87,
+      "min_ms": 48.82,
+      "memory_peak_kb": 49.6,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Total Stats (COUNT + SUM)",
+      "dataset": "100K",
+      "median_ms": 16.63,
+      "p95_ms": 17.79,
+      "min_ms": 16.37,
+      "memory_peak_kb": 43.3,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Largest Folders (top 50)",
+      "dataset": "100K",
+      "median_ms": 4.03,
+      "p95_ms": 5.36,
+      "min_ms": 3.95,
+      "memory_peak_kb": 68.8,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Full Overview (combined)",
+      "dataset": "100K",
+      "median_ms": 52.59,
+      "p95_ms": 55.43,
+      "min_ms": 51.99,
+      "memory_peak_kb": 39.5,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Largest Files (top 100)",
+      "dataset": "500K",
+      "median_ms": 97.35,
+      "p95_ms": 105.02,
+      "min_ms": 96.91,
+      "memory_peak_kb": 120.8,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Largest Files (top 10)",
+      "dataset": "500K",
+      "median_ms": 93.96,
+      "p95_ms": 107.39,
+      "min_ms": 93.57,
+      "memory_peak_kb": 33.0,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Category Breakdown",
+      "dataset": "500K",
+      "median_ms": 199.76,
+      "p95_ms": 207.3,
+      "min_ms": 198.55,
+      "memory_peak_kb": 39.1,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Extension Breakdown (top 20)",
+      "dataset": "500K",
+      "median_ms": 308.82,
+      "p95_ms": 332.85,
+      "min_ms": 305.26,
+      "memory_peak_kb": 49.6,
+      "iterations": 5,
+      "passes_200ms": false
+    },
+    {
+      "name": "Total Stats (COUNT + SUM)",
+      "dataset": "500K",
+      "median_ms": 72.36,
+      "p95_ms": 72.95,
+      "min_ms": 72.2,
+      "memory_peak_kb": 43.3,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Largest Folders (top 50)",
+      "dataset": "500K",
+      "median_ms": 4.31,
+      "p95_ms": 5.34,
+      "min_ms": 4.05,
+      "memory_peak_kb": 68.6,
+      "iterations": 5,
+      "passes_200ms": true
+    },
+    {
+      "name": "Full Overview (combined)",
+      "dataset": "500K",
+      "median_ms": 253.82,
+      "p95_ms": 257.93,
+      "min_ms": 252.81,
+      "memory_peak_kb": 39.7,
+      "iterations": 5,
+      "passes_200ms": false
+    }
+  ],
+  "nfr_pass": false
+}

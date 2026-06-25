@@ -1,0 +1,7 @@
+- Scan 1M files in under 30 minutes
+- Memory usage under 500 MB during scans
+- API response time under 200 ms for cached queries
+- 80%+ test coverage
+- Docker deployment in one command
+- Recovery from interrupted scans
+- Support Windows, macOS, Linux
