@@ -210,17 +210,24 @@ class CleanupService:
         return {"action_id": action_id, "status": "approved"}
 
     async def execute(self, action_id: str) -> dict[str, Any]:
-        """Execute an approved cleanup action (move files to trash).
+        """Execute an approved cleanup action with full filesystem verification.
 
-        Only processes files that exist. Creates a manifest for restore.
-        Atomicity: if any critical error occurs, already-moved files stay
-        in trash (can be restored individually).
+        Transaction-like behavior:
+        1. Validate action state
+        2. Create trash directory
+        3. For each target: validate → move → verify
+        4. Write manifest ONLY for verified moves
+        5. Update database ONLY after filesystem confirms
+        6. Create audit log
+
+        If zero files are successfully moved, returns failure.
+        Partial success reports exactly what moved and what didn't.
 
         Args:
             action_id: The approved action to execute.
 
         Returns:
-            Execution result with bytes recovered.
+            Execution result with verified bytes recovered.
 
         Raises:
             NotFoundError: If action doesn't exist.
@@ -238,46 +245,43 @@ class CleanupService:
         await self._session.flush()
 
         target_paths = json.loads(action["target_paths"])
-        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-        trash_dir = self._trash_base / today / action_id
-        trash_dir.mkdir(parents=True, exist_ok=True)
 
-        # Manifest tracks original locations for restore
+        # Use FilesystemService for all OS operations
+        from app.services.filesystem_service import FilesystemService
+        fs = FilesystemService(trash_base=self._trash_base)
+
+        trash_dir = fs.create_trash_dir(action_id)
+
+        # Execute moves with full verification
         manifest: list[dict[str, Any]] = []
         bytes_recovered = 0
         errors: list[dict[str, str]] = []
 
         for idx, path in enumerate(target_paths):
-            src = Path(path)
-            if not src.exists():
-                continue
+            result = fs.move_to_trash(path, trash_dir, idx)
 
-            try:
-                size = src.stat().st_size if src.is_file() else 0
-                # Preserve directory structure in trash
-                dest = trash_dir / f"{idx}_{src.name}"
-                shutil.move(str(src), str(dest))
-
+            if result.success:
                 manifest.append({
-                    "original_path": path,
-                    "trash_path": str(dest),
-                    "size": size,
+                    "original_path": result.original_path,
+                    "trash_path": result.trash_path,
+                    "size": result.size_bytes,
                     "moved_at": utc_now(),
                 })
-                bytes_recovered += size
+                bytes_recovered += result.size_bytes
+            else:
+                errors.append({"path": path, "error": result.error or "Unknown error"})
+                logger.warning("cleanup_file_failed", path=path, error=result.error)
 
-            except OSError as e:
-                errors.append({"path": path, "error": str(e)})
-                logger.warning("cleanup_file_failed", path=path, error=str(e))
+        # Write manifest ONLY for successfully moved files
+        manifest_path = ""
+        if manifest:
+            mp = fs.write_manifest(trash_dir, manifest)
+            manifest_path = str(mp)
 
-        # Write manifest
-        manifest_path = trash_dir / "manifest.json"
-        manifest_path.write_text(json.dumps(manifest, indent=2))
-
-        # Final status — fail if nothing was actually processed
+        # Determine final status based on VERIFIED results
         if not manifest and target_paths:
-            status = "failed"
-            error_msg = f"None of the {len(target_paths)} target paths exist on the filesystem"
+            # Nothing moved — this is a failure
+            error_msg = f"None of the {len(target_paths)} targets could be moved. Errors: {errors[:3]}"
             await self._session.execute(
                 text(
                     "UPDATE cleanup_actions SET status = 'failed', error_message = :err, "
@@ -291,10 +295,11 @@ class CleanupService:
                 "status": "failed",
                 "files_processed": 0,
                 "bytes_recovered": 0,
-                "errors": len(target_paths),
+                "errors": len(errors),
                 "trash_location": "",
             }
 
+        # Success (full or partial) — update DB only AFTER filesystem confirms
         status = "completed"
         await self._session.execute(
             text(
@@ -304,7 +309,8 @@ class CleanupService:
                     completed_at = :now,
                     trash_location = :trash,
                     manifest_path = :manifest,
-                    bytes_recovered = :bytes
+                    bytes_recovered = :bytes,
+                    error_message = :err_msg
                 WHERE id = :id
                 """
             ),
@@ -312,8 +318,9 @@ class CleanupService:
                 "status": status,
                 "now": utc_now(),
                 "trash": str(trash_dir),
-                "manifest": str(manifest_path),
+                "manifest": manifest_path,
                 "bytes": bytes_recovered,
+                "err_msg": f"{len(errors)} files skipped" if errors else None,
                 "id": action_id,
             },
         )
@@ -325,7 +332,7 @@ class CleanupService:
             action="cleanup_executed",
             entity_type="cleanup_action",
             entity_id=action_id,
-            description=f"Moved {len(manifest)} files to trash, recovered {bytes_recovered} bytes",
+            description=f"Verified: {len(manifest)} files moved to trash, {bytes_recovered} bytes recovered",
             bytes_affected=bytes_recovered,
             paths_affected=[m["original_path"] for m in manifest[:50]],
             severity="info",
@@ -333,11 +340,12 @@ class CleanupService:
         )
 
         logger.info(
-            "cleanup_executed",
+            "cleanup_executed_verified",
             action_id=action_id,
             files_moved=len(manifest),
             bytes_recovered=bytes_recovered,
             errors=len(errors),
+            verified=True,
         )
 
         return {
@@ -350,15 +358,16 @@ class CleanupService:
         }
 
     async def rollback(self, action_id: str) -> dict[str, Any]:
-        """Rollback a completed cleanup by restoring files from trash.
+        """Rollback a completed cleanup with full filesystem verification.
 
-        Reads the manifest and moves files back to their original locations.
+        Reads manifest and restores each file, verifying each restoration
+        succeeded at the OS level before reporting success.
 
         Args:
             action_id: The completed action to rollback.
 
         Returns:
-            Rollback result with files restored count.
+            Rollback result with verified restoration count.
 
         Raises:
             NotFoundError: If action doesn't exist.
@@ -369,32 +378,30 @@ class CleanupService:
             raise ConflictError(f"Cannot rollback action in state '{action['status']}'")
 
         manifest_path = action.get("manifest_path")
-        if not manifest_path or not Path(manifest_path).exists():
+        if not manifest_path:
             raise ConflictError("No manifest found for rollback")
 
-        manifest = json.loads(Path(manifest_path).read_text())
+        from app.services.filesystem_service import FilesystemService
+        fs = FilesystemService(trash_base=self._trash_base)
+
+        manifest = fs.read_manifest(manifest_path)
+        if manifest is None:
+            raise ConflictError(f"Cannot read manifest at: {manifest_path}")
+
         restored_count = 0
         bytes_restored = 0
         errors: list[dict[str, str]] = []
 
         for entry in manifest:
-            trash_path = Path(entry["trash_path"])
-            original_path = Path(entry["original_path"])
+            result = fs.restore_from_trash(entry["trash_path"], entry["original_path"])
 
-            if not trash_path.exists():
-                errors.append({"path": entry["original_path"], "error": "trash file missing"})
-                continue
-
-            try:
-                # Ensure parent directory exists
-                original_path.parent.mkdir(parents=True, exist_ok=True)
-                shutil.move(str(trash_path), str(original_path))
+            if result.success:
                 restored_count += 1
-                bytes_restored += entry.get("size", 0)
-            except OSError as e:
-                errors.append({"path": entry["original_path"], "error": str(e)})
+                bytes_restored += result.size_bytes
+            else:
+                errors.append({"path": entry["original_path"], "error": result.error or "Unknown"})
 
-        # Update status
+        # Update status ONLY after filesystem operations complete
         await self._session.execute(
             text(
                 "UPDATE cleanup_actions SET status = 'rolled_back', rolled_back_at = :now WHERE id = :id"
@@ -409,17 +416,18 @@ class CleanupService:
             action="cleanup_rolled_back",
             entity_type="cleanup_action",
             entity_id=action_id,
-            description=f"Restored {restored_count} files from trash",
+            description=f"Verified: {restored_count} files restored to original locations",
             bytes_affected=bytes_restored,
             severity="warning",
             correlation_id=action_id,
         )
 
         logger.info(
-            "cleanup_rolled_back",
+            "cleanup_rolled_back_verified",
             action_id=action_id,
             files_restored=restored_count,
             bytes_restored=bytes_restored,
+            errors=len(errors),
         )
 
         return {
